@@ -6,5 +6,8 @@ import "./index.css";
 fetch("/database")
   .then(resp => resp.text())
   .then(database => {
-    ReactDOM.render(<App databaseURL={database} />, document.getElementById("root"));
+    ReactDOM.render(
+      <App databaseURL={database} />,
+      document.getElementById("root")
+    );
   });

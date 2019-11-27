@@ -40,7 +40,7 @@ class App extends Component {
 
   deleteFirebase(dataRef) {
     const { mode } = this.state;
-    fetch(dataRef, { method: "DELETE" })
+    fetch(dataRef + ".json", { method: "DELETE" })
       .then(() => {
         // force refresh after a successful delete.
         if (mode === MODE_REALTIME) {
@@ -54,34 +54,30 @@ class App extends Component {
 
   getFirebase(dataRef, realtime) {
     const { pathname } = window.location;
-    const { databaseURL } = this.props;
 
     // abort the fetch if non-shallow query is timeout.
     const controller = new AbortController();
     const signal = controller.signal;
     setTimeout(() => controller.abort(), DEFAULT_REALTIME_DELAY);
 
-    // get acess token from server.
-    fetch("/token")
-      .then(token => token.text())
-      .then(token =>
-        Promise.all([
-          fetch(`${databaseURL}${dataRef}.json?shallow=true&access_token=${token}`)
+    Promise.all([
+      fetch(`${dataRef}.json?shallow=true`)
+        .then(resp => resp.json())
+        .then(json => ({ mode: MODE_OFFLINE, json: json })),
+      realtime
+        ? fetch(`${dataRef}.json`, {
+            signal
+          })
             .then(resp => resp.json())
-            .then(json => ({ mode: MODE_OFFLINE, json: json })),
-          realtime
-            ? fetch(`${databaseURL}${dataRef}.json?access_token=${token}`, { signal })
-                .then(resp => resp.json())
-                .then(json => ({ mode: MODE_REALTIME, json: json }))
-                .catch(e => {
-                  if (e.name === "AbortError") {
-                    return "";
-                  }
-                  throw e;
-                })
-            : Promise.resolve(false),
-        ])
-      )
+            .then(json => ({ mode: MODE_REALTIME, json: json }))
+            .catch(e => {
+              if (e.name === "AbortError") {
+                return "";
+              }
+              throw e;
+            })
+        : Promise.resolve(false)
+    ])
       .then(results => results[1] || results[0])
       .then(result => {
         const { json, mode } = result;
@@ -135,9 +131,12 @@ class App extends Component {
             <img alt="info" className="offline-img" src="/info.png" />
             <div className="offline-text">
               <p className="offline-title">
-                Read-only & non-realtime mode activated in the data viewer to improve browser performance
+                Read-only & non-realtime mode activated in the data viewer to
+                improve browser performance
               </p>
-              <p className="offline-subtitle">Select a key with fewer records to edit or view in realtime</p>
+              <p className="offline-subtitle">
+                Select a key with fewer records to edit or view in realtime
+              </p>
             </div>
           </div>
         )}
@@ -147,7 +146,10 @@ class App extends Component {
             {paths.map((key, i) => (
               <span key={key}>
                 {key && <span className="breadcrumb-arrow">{" > "}</span>}
-                <a className="breadcrumb" href={path.join("/", ...paths.slice(0, i + 1))}>
+                <a
+                  className="breadcrumb"
+                  href={path.join("/", ...paths.slice(0, i + 1))}
+                >
                   {key || databaseURL}
                 </a>
               </span>
@@ -166,13 +168,19 @@ class App extends Component {
                 width: "24px",
                 height: "28px",
                 // display: "inline-block",
-                lineHeight: "26px",
-              },
+                lineHeight: "26px"
+              }
             }),
             arrowSign: {
-              color: "transparent",
+              color: "transparent"
             },
-            nestedNode: ({ style }, keyPath, nodeType, expanded, expandable) => {
+            nestedNode: (
+              { style },
+              keyPath,
+              nodeType,
+              expanded,
+              expandable
+            ) => {
               return keyPath.length === 1
                 ? { style } // root case
                 : {
@@ -182,10 +190,10 @@ class App extends Component {
                       backgroundPosition: "-99px 0px",
                       marginBottom: "-4px",
                       backgroundRepeat: "repeat-y",
-                      marginLeft: "1.875em",
-                    },
+                      marginLeft: "1.875em"
+                    }
                   };
-            },
+            }
           }}
           getItemString={(type, data, itemType, itemString) => ""}
           labelRenderer={(raw, type) => {
@@ -202,7 +210,13 @@ class App extends Component {
                   </div>
                 );
               case LOADING_LABEL: // shallow child node case
-                this.getFirebase(path.join(pathname, ...raw.slice(1, raw.length - 1).reverse()), false);
+                this.getFirebase(
+                  path.join(
+                    pathname,
+                    ...raw.slice(1, raw.length - 1).reverse()
+                  ),
+                  false
+                );
                 return <div className="loader" />;
               default:
                 const ref = path.join(

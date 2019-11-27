@@ -1,38 +1,34 @@
 const path = require("path");
 const express = require("express");
+const url = require("url");
 const compression = require("compression");
 const favicon = require("serve-favicon");
 const serveStatic = require("serve-static");
 const { google } = require("googleapis");
-const admin = require("firebase-admin");
+const fetch = require("node-fetch");
+const AbortController = require("abort-controller");
 
 const Server = (database, serviceAccountPath) => {
   // Load the service account key JSON file.
-  const serviceAccount = serviceAccountPath ? require(serviceAccountPath) : null;
-
-  admin.initializeApp({
-    credential: serviceAccount
-      ? admin.credential.cert(serviceAccount)
-      : {
-          getAccessToken: () => ({
-            expires_in: 1000000,
-            access_token: "",
-          }),
-        },
-    databaseURL: database,
-  });
-
-  const db = admin.database();
+  const serviceAccount = serviceAccountPath
+    ? require(serviceAccountPath)
+    : null;
 
   // Define the required scopes.
   const scopes = [
     "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/firebase.database",
+    "https://www.googleapis.com/auth/firebase.database"
   ];
 
   // Authenticate a JWT client with the service account.
   const jwtClient =
-    serviceAccount && new google.auth.JWT(serviceAccount.client_email, null, serviceAccount.private_key, scopes);
+    serviceAccount &&
+    new google.auth.JWT(
+      serviceAccount.client_email,
+      null,
+      serviceAccount.private_key,
+      scopes
+    );
 
   let cachedToken = null;
   const getToken = () => {
@@ -47,7 +43,9 @@ const Server = (database, serviceAccountPath) => {
         if (error) {
           reject(`Error making request to generate access token: ${error}`);
         } else if (token.access_token === null) {
-          reject("Provided service account does not have permission to generate access tokens");
+          reject(
+            "Provided service account does not have permission to generate access tokens"
+          );
         } else {
           cachedToken = token;
           resolve(cachedToken.access_token);
@@ -64,17 +62,38 @@ const Server = (database, serviceAccountPath) => {
   app.use(compression());
   app.use(favicon(path.join(serveDir, "favicon.ico")));
   app.use(serveStatic(serveDir, { extensions: ["html"] }));
-  app.get("/token", (req, res) => {
-    getToken().then(token => {
-      res.send(token);
-    });
-  });
+
   app.get("/database", (req, res) => {
     res.send(database);
   });
-  app.delete("*", (req, res) => {
-    db.ref(req.originalUrl).set(null);
-    res.end();
+
+  // proxy all client's firebase restful requests to firebase server.
+  app.use("/*.json$", (req, res) => {
+    // abort the request if client cancels the request.
+    const controller = new AbortController();
+    req.on("close", () => controller.abort());
+
+    getToken().then(token =>
+      fetch(
+        url.format({
+          host: database,
+          pathname: req._parsedUrl.pathname,
+          // append the access token into query.
+          query: { ...req.query, access_token: token }
+        }),
+        { method: req.method, signal: controller.signal }
+      )
+        .then(resp => resp.json())
+        .then(json => res.json(json))
+        .catch(e => {
+          if (e.name === "AbortError") {
+            // request cancelled by client.
+            res.end();
+            return;
+          }
+          res.status(500).send(e.toString());
+        })
+    );
   });
   app.get("*", (_, res) => res.sendFile(path.join(serveDir, fallbackPage)));
 
