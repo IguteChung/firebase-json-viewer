@@ -16,7 +16,7 @@ docker run -ti -p 8080:8080 -v [SERVICE_ACCOUNT]:/etc/sa.json frankchung/firebas
 
 # Features
 
-![image](https://github.com/IguteChung/firebase-json-viewer/blob/master/assets/cover.png)
+- Support real-time and offline (shallow) mode.
+- Support delete/set the value of node.
 
-1. Support real-time and offline mode.
-2. Support delete/set the value of node.
+![image](https://github.com/IguteChung/firebase-json-viewer/blob/master/assets/example.png)
