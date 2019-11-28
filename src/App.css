@@ -60,6 +60,7 @@
   padding-left: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
+  border: none;
 }
 
 .breadcrumb {

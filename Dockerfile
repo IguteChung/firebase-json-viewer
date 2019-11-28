@@ -13,4 +13,4 @@ RUN yarn --prod
 COPY server.js ./
 COPY bin ./bin
 COPY --from=compiler /data/build ./build
-CMD ./bin/firebase-json-viewer.js
+ENTRYPOINT ["/server/bin/firebase-json-viewer.js"]

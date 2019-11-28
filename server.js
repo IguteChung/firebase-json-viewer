@@ -7,6 +7,7 @@ const serveStatic = require("serve-static");
 const { google } = require("googleapis");
 const fetch = require("node-fetch");
 const AbortController = require("abort-controller");
+const bodyParser = require("body-parser");
 
 const Server = (database, serviceAccountPath) => {
   // Load the service account key JSON file.
@@ -62,6 +63,8 @@ const Server = (database, serviceAccountPath) => {
   app.use(compression());
   app.use(favicon(path.join(serveDir, "favicon.ico")));
   app.use(serveStatic(serveDir, { extensions: ["html"] }));
+  app.use(bodyParser.json({ strict: false }));
+  app.use(bodyParser.urlencoded({ extended: true }));
 
   app.get("/database", (req, res) => {
     res.send(database);
@@ -72,6 +75,7 @@ const Server = (database, serviceAccountPath) => {
     // abort the request if client cancels the request.
     const controller = new AbortController();
     req.on("close", () => controller.abort());
+    let bodyStr = JSON.stringify(req.body);
 
     getToken().then(token =>
       fetch(
@@ -81,7 +85,11 @@ const Server = (database, serviceAccountPath) => {
           // append the access token into query.
           query: { ...req.query, access_token: token }
         }),
-        { method: req.method, signal: controller.signal }
+        {
+          method: req.method,
+          signal: controller.signal,
+          ...(bodyStr !== "{}" && { body: bodyStr })
+        }
       )
         .then(resp => resp.json())
         .then(json => res.json(json))
@@ -91,6 +99,7 @@ const Server = (database, serviceAccountPath) => {
             res.end();
             return;
           }
+          console.log("[Error]: ", req.url, e);
           res.status(500).send(e.toString());
         })
     );

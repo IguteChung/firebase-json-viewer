@@ -52,6 +52,40 @@ class App extends Component {
       .catch(err => alert(err));
   }
 
+  setFirebase(dataRef, value) {
+    // remove the quotes and convert to a primitive.
+    let v;
+    try {
+      v = JSON.parse(value);
+    } catch (e) {
+      if (e.name !== "SyntaxError") {
+        alert(e);
+        return;
+      }
+
+      // handle string without quotes.
+      v = JSON.parse(`"${value}"`);
+    }
+
+    const { mode } = this.state;
+    fetch(dataRef + ".json", {
+      method: "PUT",
+      body: JSON.stringify(v),
+      headers: {
+        "content-type": "application/json"
+      }
+    })
+      .then(() => {
+        // force refresh after a successful set.
+        if (mode === MODE_REALTIME) {
+          this.getFirebase(window.location.pathname, true);
+        } else {
+          this.getFirebase(path.dirname(dataRef), false);
+        }
+      })
+      .catch(err => alert(err));
+  }
+
   getFirebase(dataRef, realtime) {
     const { pathname } = window.location;
 
@@ -250,12 +284,35 @@ class App extends Component {
                 );
             }
           }}
-          valueRenderer={raw => {
+          valueRenderer={(raw, data, ...labels) => {
             switch (raw) {
               case `"${LOADING_VALUE}"`:
                 return "";
               default:
-                return <span className="value">{raw}</span>;
+                const ref = path.join(
+                  pathname,
+                  ...labels
+                    .slice(0, labels.length - 1)
+                    .reverse()
+                    .map(p => p.toString())
+                );
+                return (
+                  <input
+                    className="value"
+                    type="textbox"
+                    defaultValue={raw}
+                    onBlur={e => {
+                      if (raw !== e.target.value) {
+                        this.setFirebase(ref, e.target.value);
+                      }
+                    }}
+                    onKeyPress={v => {
+                      if (v.key === "Enter") {
+                        v.target.blur();
+                      }
+                    }}
+                  />
+                );
             }
           }}
         />
