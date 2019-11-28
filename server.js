@@ -9,7 +9,7 @@ const fetch = require("node-fetch");
 const AbortController = require("abort-controller");
 const bodyParser = require("body-parser");
 
-const Server = (database, serviceAccountPath) => {
+const Server = ({ database, serviceAccountPath, token }) => {
   // Load the service account key JSON file.
   const serviceAccount = serviceAccountPath
     ? require(serviceAccountPath)
@@ -34,7 +34,8 @@ const Server = (database, serviceAccountPath) => {
   let cachedToken = null;
   const getToken = () => {
     if (!serviceAccount) {
-      return Promise.resolve("");
+      // if service account not specified, use given token.
+      return Promise.resolve(token);
     }
     if (cachedToken && cachedToken.expiry_date > Date.now()) {
       return Promise.resolve(cachedToken.access_token);
