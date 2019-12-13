@@ -9,7 +9,7 @@ const fetch = require("node-fetch");
 const AbortController = require("abort-controller");
 const bodyParser = require("body-parser");
 
-const Server = ({ database, serviceAccountPath, token }) => {
+const Server = ({ database, serviceAccountPath, token, withDelete }) => {
   // Load the service account key JSON file.
   const serviceAccount = serviceAccountPath
     ? require(serviceAccountPath)
@@ -73,6 +73,11 @@ const Server = ({ database, serviceAccountPath, token }) => {
 
   // proxy all client's firebase restful requests to firebase server.
   app.use("/*.json$", (req, res) => {
+
+    if (req.method == "DELETE" && !withDelete) {
+      res.status(405).send("DELETE Method is no allowed");
+      return
+    }
     // abort the request if client cancels the request.
     const controller = new AbortController();
     req.on("close", () => controller.abort());
@@ -93,14 +98,14 @@ const Server = ({ database, serviceAccountPath, token }) => {
         }
       )
         .then(resp => resp.json())
-        .then(json => res.json(json))
+        .then(json => res.json({"withDelete":withDelete, "data": json}))
         .catch(e => {
           if (e.name === "AbortError") {
             // request cancelled by client.
             res.end();
             return;
           }
-          console.log("[Error]: ", req.url, e);
+          // console.log("[Error]: ", req.url, e);
           res.status(500).send(e.toString());
         })
     );

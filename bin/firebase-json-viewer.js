@@ -16,13 +16,16 @@ program
     "-t, --token <string>",
     "Optional, Firebase access token for restful api"
   )
+  .option(
+    "--withDelete",
+    "Optional, Disable delete button"
+  )
   .parse(process.argv);
 
-const { database, serviceAccount, token } = program;
+const { database, serviceAccount, token, withDelete } = program;
 
 if (!database) {
   program.outputHelp();
   return;
 }
-
-Server({ database, serviceAccount, token });
+Server({ database, serviceAccount, token, withDelete });
