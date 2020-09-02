@@ -19,7 +19,7 @@
     "commander": "^2.19.0",
     "compression": "^1.7.4",
     "express": "^4.16.4",
-    "googleapis": "^38.0.0",
+    "googleapis": "^39.1.0",
     "node-fetch": "^2.6.0",
     "serve-favicon": "^2.5.0",
     "serve-static": "^1.13.2"
